@@ -3,12 +3,14 @@
 # This source code is licensed under the MIT license found in the
 # LICENSE file in the root directory of this source tree.
 
+import io
 import math
 import os
 import pathlib
 import warnings
 from logging import getLogger
 
+import h5py
 import numpy as np
 import pandas as pd
 import torch
@@ -290,19 +292,40 @@ class VideoDataset(torch.utils.data.Dataset):
         """Load video content using Decord"""
 
         fname = sample
-        if not os.path.exists(fname):
-            warnings.warn(f"video path not found {fname=}")
-            return [], None
+        if "::" in fname:
+            # Clip packed in an HDF5 file: "<file.h5>::<video>/<clip>"
+            h5_path, key = fname.split("::", 1)
+            try:
+                with h5py.File(h5_path, "r") as f:
+                    # Each clip is the raw mp4 file stored as a 1-D uint8 array
+                    dset = f[key]
+                    if dset.dtype != np.uint8:
+                        raise TypeError(f"expected uint8 clip, got {dset.dtype}")
+                    if dset.nbytes > self.filter_long_videos:
+                        warnings.warn(
+                            f"skipping long video of size {dset.nbytes=} (bytes)"
+                        )
+                        return [], None
+                    I
+                vr = VideoReader(io.BytesIO(data), num_threads=-1, ctx=cpu(0))
+            except Exception as e:
+                logger.warning(f"failed to load {fname=}: {e}")
+                return [], None
+        else:
+            if not os.path.exists(fname):
+                warnings.warn(f"video path not found {fname=}")
+                return [], None
 
-        _fsize = os.path.getsize(fname)
-        if _fsize > self.filter_long_videos:
-            warnings.warn(f"skipping long video of size {_fsize=} (bytes)")
-            return [], None
+            _fsize = os.path.getsize(fname)
+            if _fsize > self.filter_long_videos:
+                warnings.warn(f"skipping long video of size {_fsize=} (bytes)")
+                return [], None
 
-        try:
-            vr = VideoReader(fname, num_threads=-1, ctx=cpu(0))
-        except Exception:
-            return [], None
+            try:
+                vr = VideoReader(fname, num_threads=-1, ctx=cpu(0))
+            except Exception as e:
+                logger.warning(f"failed to load {fname=}: {e}")
+                return [], None
 
         fstp = self.frame_step
         if self.duration is not None or self.fps is not None:
