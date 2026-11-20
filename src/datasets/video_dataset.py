@@ -306,7 +306,7 @@ class VideoDataset(torch.utils.data.Dataset):
                             f"skipping long video of size {dset.nbytes=} (bytes)"
                         )
                         return [], None
-                    I
+                    data = dset[()].tobytes()
                 vr = VideoReader(io.BytesIO(data), num_threads=-1, ctx=cpu(0))
             except Exception as e:
                 logger.warning(f"failed to load {fname=}: {e}")
