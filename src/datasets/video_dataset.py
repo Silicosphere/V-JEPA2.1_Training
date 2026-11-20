@@ -53,6 +53,7 @@ def make_videodataset(
     persistent_workers=True,
     deterministic=True,
     log_dir=None,
+    shuffle=True,
 ):
     dataset = VideoDataset(
         data_paths=data_paths,
@@ -85,12 +86,15 @@ def make_videodataset(
 
     logger.info("VideoDataset dataset created")
     if datasets_weights is not None:
+        if not shuffle:
+            # DistributedWeightedSampler always draws random indices
+            raise ValueError("shuffle=False is not supported with datasets_weights")
         dist_sampler = DistributedWeightedSampler(
             dataset, num_replicas=world_size, rank=rank, shuffle=True
         )
     else:
         dist_sampler = torch.utils.data.distributed.DistributedSampler(
-            dataset, num_replicas=world_size, rank=rank, shuffle=True
+            dataset, num_replicas=world_size, rank=rank, shuffle=shuffle
         )
 
     if deterministic:

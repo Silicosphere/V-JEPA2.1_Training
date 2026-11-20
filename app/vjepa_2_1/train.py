@@ -138,6 +138,7 @@ def main(args, resume_preempt=False):
     grid_size = crop_size // patch_size
     pin_mem = cfgs_data.get("pin_mem", False)
     num_workers = cfgs_data.get("num_workers", 1)
+    shuffle = cfgs_data.get("shuffle", True)
 
     # -- IMG DATA
     cfgs_img_data = args.get("img_data")
@@ -402,6 +403,7 @@ def main(args, resume_preempt=False):
         num_workers=num_workers,
         pin_mem=pin_mem,
         log_dir=None,
+        shuffle=shuffle,
     )
     try:
         _dlen = len(unsupervised_loader)
