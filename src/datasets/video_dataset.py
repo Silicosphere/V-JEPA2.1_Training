@@ -311,6 +311,7 @@ class VideoDataset(torch.utils.data.Dataset):
                         )
                         return [], None
                     data = dset[()].tobytes()
+                print(fname)
                 vr = VideoReader(io.BytesIO(data), num_threads=-1, ctx=cpu(0))
             except Exception as e:
                 logger.warning(f"failed to load {fname=}: {e}")
