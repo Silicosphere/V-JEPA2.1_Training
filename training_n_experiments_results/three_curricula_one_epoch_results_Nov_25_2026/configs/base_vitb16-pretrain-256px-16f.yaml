@@ -1,0 +1,138 @@
+# V-JEPA 2.1 ViT-B/16 pretraining on curated Ego4D clips, one pass in CSV order.
+#
+# Derived from configs/train_2_1/vitb16/pretrain-256px-16f.yaml with:
+#   - video only (img_data / img_mask removed; one GPU cannot host image ranks)
+#   - one curriculum CSV, read strictly in order (shuffle: false)
+#   - epochs: auto -> ceil(iterations in one pass / ipe)
+#   - batch 16, LR 2e-4 and all schedules in clips seen, chosen by the sweep in
+#     scripts/sweep (runs/sweep): batch 16 beat 4 and 1 per clip; LR 1e-4 and
+#     3e-4 tied, 6e-4 partly collapsed (RankMe 28)
+# The curriculum (top / low / random list) and folder are set per run by
+# scripts/train/curriculum.sbatch.
+app: vjepa_2_1
+nodes: 1
+tasks_per_node: 1
+folder: /data/asem.a.abdelaziz/gp-2027a/runs/vitb16-ego4d-CURRICULUM
+data:
+  dataset_type: VideoDataset
+  datasets:
+  - /data/asem.a.abdelaziz/gp-2027a/ego4d_lists_filtered/ego4d_top.csv  # no black clips, no held-out videos
+  shuffle: false
+  per_clip_rng: true  # same window/crop/flip per clip, same masks per step, in every curriculum
+  batch_size: 16
+  crop_size: 256
+  patch_size: 16
+  dataset_fpcs:
+  - 16
+  tubelet_size: 2
+  fps: 4
+  num_workers: 8  # keeps up with a 5070 Ti (0 ms data wait); 12 + eval workers ran out of 29 GB RAM
+  persistent_workers: true
+  pin_mem: true
+data_aug:
+  auto_augment: false
+  motion_shift: false
+  random_resize_aspect_ratio:
+  - 0.75
+  - 1.35
+  random_resize_scale:
+  - 0.3
+  - 1.0
+  reprob: 0.0
+loss:
+  loss_exp: 1.0
+  predict_all: true
+  reg_coeff: 0.0
+  shift_by_n: 0
+  weight_distance_loss: true
+mask:
+- aspect_ratio:
+  - 0.75
+  - 1.5
+  full_complement: false
+  max_keep: null
+  max_temporal_keep: 1.0
+  num_blocks: 8
+  spatial_scale:
+  - 0.15
+  - 0.15
+  temporal_scale:
+  - 1.0
+  - 1.0
+- aspect_ratio:
+  - 0.75
+  - 1.5
+  full_complement: false
+  max_keep: null
+  max_temporal_keep: 1.0
+  num_blocks: 2
+  spatial_scale:
+  - 0.7
+  - 0.7
+  temporal_scale:
+  - 1.0
+  - 1.0
+eval:
+  # 1,000 clips from 30 whole held-out videos, evenly spread over the surprise
+  # ranking (scripts/data/make_curriculum_split.py); identical for all curricula
+  heldout_csv: /data/asem.a.abdelaziz/gp-2027a/ego4d_lists_filtered/heldout_eval.csv
+  every_clips: 10000  # ~75 s per evaluation on a 5070 Ti, ~15% on top of training
+  batch_size: 20  # must divide the 1,000 held-out clips (partial batches are dropped)
+  num_workers: 4  # started per evaluation; host RAM is 29 GB on the 16 GB-GPU nodes
+meta:
+  dtype: bfloat16
+  eval_freq: 100
+  load_checkpoint: true
+  read_checkpoint: null
+  save_every_freq: -1  # keep only the latest checkpoint (resume) and the final model
+  seed: 239
+  use_sdpa: true
+model:
+  has_cls_first: false
+  img_temporal_dim_size: 1
+  interpolate_rope: true
+  is_causal: false
+  lambda_value_img: 0.5
+  lambda_value_vid: 0.5
+  # Upstream ramps the context loss in over 5%-10% of the run; same here
+  lambda_start_clips: 10000
+  lambda_end_clips: 20000
+  local_window:
+  - -1
+  - -1
+  - -1
+  modality_embedding: true
+  model_name: vit_base
+  n_registers: 0
+  n_registers_predictor: 0
+  normalize_predictor: false
+  pred_depth: 12
+  pred_embed_dim: 384
+  pred_is_causal: false
+  pred_local_window:
+  - -1
+  - -1
+  - -1
+  pred_num_heads: 12
+  uniform_power: true
+  use_activation_checkpointing: true
+  use_mask_tokens: true
+  use_rope: true
+  vit_conv: false
+  zero_init_mask_tokens: true
+optimization:
+  ema:
+  - 0.99925
+  - 0.99925
+  ema_horizon_clips: 21333  # overrides ema: m = 1 - 16/21333 = 0.99925 (upstream) at batch 16
+  epochs: auto
+  ipe: 625  # iterations between checkpoints (10,000 clips, same cadence as evaluation)
+  ipe_scale: 1.25
+  # Warmup from lr/6 to lr over 8,000 clips (~4% of the pass, as upstream), then
+  # constant (upstream default). Upstream lr 6e-4 was for global batch 3072.
+  lr: 0.0002
+  start_lr: 0.0000333
+  final_lr: 0.0002
+  warmup_clips: 8000
+  weight_decay: 0.04
+  final_weight_decay: 0.04

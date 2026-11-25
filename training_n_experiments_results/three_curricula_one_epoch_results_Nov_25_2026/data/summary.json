@@ -1,0 +1,42 @@
+{
+  "args": {
+    "lists_dir": "/data/asem.a.abdelaziz/gp-2027a/ego4d_lists",
+    "lists": [
+      "ego4d_top.csv",
+      "ego4d_low.csv",
+      "ego4d_random.csv"
+    ],
+    "rank_list": "ego4d_top.csv",
+    "scan": [
+      "logs/clip-scan-1958.csv",
+      "logs/clip-scan-part2-1960.csv"
+    ],
+    "out_dir": "/data/asem.a.abdelaziz/gp-2027a/ego4d_lists_filtered",
+    "black_std": 0.0,
+    "dim_std": 5.0,
+    "heldout_videos": 30,
+    "video_size": [
+      30,
+      120
+    ],
+    "eval_clips": 1000,
+    "seed": 0
+  },
+  "input_clips": 217093,
+  "removed": {
+    "black": 7170,
+    "dim": 151,
+    "heldout": 2210
+  },
+  "train_clips": 207562,
+  "heldout_videos": 30,
+  "heldout_clips": 2210,
+  "eval_clips": 1000,
+  "eval_rank_fraction_quantiles": {
+    "0": 0.0,
+    "0.25": 0.24,
+    "0.5": 0.506,
+    "0.75": 0.72,
+    "1": 0.996
+  }
+}
